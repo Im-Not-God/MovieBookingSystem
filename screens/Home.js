@@ -16,57 +16,84 @@ import {
 import { color } from "react-native-reanimated";
 import { Colors } from "react-native/Libraries/NewAppScreen";
 // import { TouchableWithoutFeedback } from "react-native-gesture-handler";
-import { icons, images, theme, COLORS, SIZES, FONTS,api } from "../constants";
+import { icons, images, theme, COLORS, SIZES, FONTS, api } from "../constants";
 import { movie } from "../constants";
 import { Profiles, AppIcon, Loading } from "../components";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 const Home = ({ navigation }) => {
   const newSeasonScrollX = React.useRef(new Animated.Value(0)).current;
 
-  const fetchData = movie(api.getPopularResp());
-  const popularMovie = fetchData.data;
+  const fetchData = movie(
+    "https://api.themoviedb.org/3/movie/popular?api_key=024d69b581633d457ac58359146c43f6"
+  );
+  const popularMovie = fetchData?.data;
   const isLoading = fetchData.isLoading;
-
-  // const [popularMovie, setPopularMovie] = useState([]);
-  // const [isLoading, setLoading] = useState(true);
-  // const apiReq = useCallback(async () => {
-  //   const [resp] = await Promise.all([
-  //     axios.get(
-  //       api.getPopularResp()
-  //     ),
-  //   ]).finally(() => setLoading(false));
-  //   setPopularMovie(resp.data);
-  // }, []);
-
-  // useEffect(() => {
-  //   const controller = new AbortController();
-  //   const signal = controller.signal;
-
-  //   apiReq();
-
-  //   return () => controller.abort();
-  // }, [apiReq]);
-
-
 
   const fetchData2 = movie(
     "https://api.themoviedb.org/3/movie/now_playing?api_key=024d69b581633d457ac58359146c43f6"
   );
-  const nowPlayingMovie = fetchData2.data;
+  const nowPlayingMovie = fetchData2?.data;
   const isLoading2 = fetchData2.isLoading;
 
   const today = new Date();
   let currentDate = "";
+  let nextYear="";
   if (today.getMonth() + 1 < 10) {
-    currentDate = today.getFullYear() + "-0" + (today.getMonth() + 1) + "-" + today.getDate();
+    currentDate =
+      today.getFullYear() +
+      "-0" +
+      (today.getMonth() + 1) +
+      "-" +
+      today.getDate();
+      
+      nextYear =
+      (today.getFullYear()+1) +
+      "-0" +
+      (today.getMonth() + 1) +
+      "-" +
+      today.getDate();
+
   } else {
-    currentDate = today.getFullYear() + "-" + (today.getMonth() + 1) + "-" + today.getDate();
+    currentDate =
+      today.getFullYear() +
+      "-" +
+      (today.getMonth() + 1) +
+      "-" +
+      today.getDate();
+
+      nextYear =
+      (today.getFullYear()+1) +
+      "-" +
+      (today.getMonth() + 1) +
+      "-" +
+      today.getDate();
   }
 
-  const fetchData3=movie(`https://api.themoviedb.org/3/discover/movie?api_key=024d69b581633d457ac58359146c43f6&language=en-US&sort_by=popularity.desc&page=1&primary_release_date.gte=${currentDate}`);
-  //const fetchData3=movie("https://api.themoviedb.org/3/movie/upcoming?api_key=024d69b581633d457ac58359146c43f6");
-  const comingSoonMovie = fetchData3.data;
+  const fetchData3 = movie(
+    `https://api.themoviedb.org/3/discover/movie?api_key=024d69b581633d457ac58359146c43f6&language=en-US&sort_by=popularity.desc&primary_release_date.gte=${currentDate}&primary_release_date.lte=${nextYear}`
+  );
+
+  const comingSoonMovie = fetchData3?.data;
   const isLoading3 = fetchData3.isLoading;
+
+  const [signInToken,setSignInToken]=React.useState("");
+
+  React.useEffect(()=>{
+      getData();
+  },[])
+
+  async function getData() {
+    try {
+      let value = await AsyncStorage.getItem("signInToken");
+      if (value !== null) {
+        setSignInToken(value);
+        console.log("signInToken_home",value)
+      }
+    } catch (error) {
+      console.log('## ERROR READING ITEM ##: ', error);
+    }
+  }
 
   var top10Popular = [];
   popularMovie?.results?.map((item, index) => {
@@ -99,7 +126,7 @@ const Home = ({ navigation }) => {
           onPress={() => navigation.push("SignIn")}
         >
           <Image
-            source={images.profile_photo}
+            source={signInToken=="true"?images.profile_photo:images.blank_profile_photo}
             style={{
               width: 40,
               height: 40,
@@ -154,7 +181,7 @@ const Home = ({ navigation }) => {
           return (
             <TouchableHighlight
               onPress={() =>
-                navigation.navigate("MovieDetail", { selectedMovie: item.id })
+                navigation.navigate("MovieDetail", { selectedMovie: item.id, currentDate:currentDate })
               }
             >
               <View
@@ -329,20 +356,20 @@ const Home = ({ navigation }) => {
           contentContainerStyle={{
             marginTop: SIZES.padding,
           }}
-          data={nowPlayingMovie.results}
+          data={nowPlayingMovie?.results}
           keyExtractor={(item) => `${item.id}`}
           renderItem={({ item, index }) => {
             return (
               <TouchableHighlight
                 onPress={() =>
-                  navigation.navigate("MovieDetail", { selectedMovie: item.id })
+                  navigation.navigate("MovieDetail", { selectedMovie: item.id, currentDate:currentDate })
                 }
               >
                 <View
                   style={{
                     marginLeft: index == 0 ? SIZES.padding : 20,
                     marginRight:
-                      index == nowPlayingMovie.results.length - 1
+                      index == item.length - 1
                         ? SIZES.padding
                         : 0,
                   }}
@@ -414,22 +441,19 @@ const Home = ({ navigation }) => {
           contentContainerStyle={{
             marginTop: SIZES.padding,
           }}
-          data={comingSoonMovie.results}
+          data={comingSoonMovie?.results}
           keyExtractor={(item) => `${item.id}`}
           renderItem={({ item, index }) => {
             return (
               <TouchableHighlight
                 onPress={() =>
-                  navigation.navigate("MovieDetail", { selectedMovie: item.id })
+                  navigation.navigate("MovieDetail", { selectedMovie: item.id, currentDate:currentDate })
                 }
               >
                 <View
                   style={{
                     marginLeft: index == 0 ? SIZES.padding : 20,
-                    marginRight:
-                      index == nowPlayingMovie.results.length - 1
-                        ? SIZES.padding
-                        : 0,
+                    marginRight: index == item.length - 1 ? SIZES.padding : 0,
                   }}
                 >
                   <Loading
@@ -441,6 +465,17 @@ const Home = ({ navigation }) => {
                       top: "30%",
                     }}
                   />
+
+                  <Loading
+                    size="large"
+                    isLoading={!isLoading2}
+                    style={{
+                      position: "absolute",
+                      alignSelf: "center",
+                      top: "30%",
+                    }}
+                  />
+                  
                   {/* thumbnail */}
                   <Image
                     source={{
@@ -486,9 +521,9 @@ const Home = ({ navigation }) => {
       <ScrollView>
         {renderPopularSection()}
         {renderDots()}
-        <View style={{height:15}}></View>
+        <View style={{ height: 15 }}></View>
         {renderNowShowingSection()}
-        <View style={{height:15}}></View>
+        <View style={{ height: 15 }}></View>
         {renderComingSoonSection()}
       </ScrollView>
     </View>
